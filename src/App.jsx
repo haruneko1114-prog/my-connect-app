@@ -1019,8 +1019,8 @@ export default function App() {
         const userData = userDoc.data();
         const targetRoom = rooms.find(r => r.id === targetRoomId);
         
-        // メッセージを送った本人「以外」で、かつその部屋のメンバーにだけ通知を飛ばす
-        if (userDoc.id !== user.uid && userData.fcmToken && targetRoom?.members?.includes(userDoc.id)) {
+        // メッセージを送った本人「以外」で、かつミュートしていないメンバーにだけ通知を飛ばす
+        if (userDoc.id !== user.uid && userData.fcmToken && !userData.isNotificationMuted && targetRoom?.members?.includes(userDoc.id)) {
           fetch(GAS_URL, {
             method: 'POST',
             mode: 'no-cors',
@@ -1309,6 +1309,7 @@ export default function App() {
           <p className="text-gray-500 mb-6 text-sm font-bold">プロフィールを設定してスタート</p>
           <form onSubmit={handleLogin} className="space-y-4">
             <input type="text" placeholder="名前 (必須)" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none font-bold" required maxLength={15} />
+            <textarea placeholder="自己紹介 (任意)" value={profile.bio || ''} onChange={e => setProfile({...profile, bio: e.target.value})} className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none h-20" maxLength={100} />
             <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2">
               <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
                 {profile.icon ? <img src={profile.icon} className="w-full h-full object-cover" alt="icon"/> : <User size={20} className="m-2.5 text-gray-400"/>}
@@ -1594,7 +1595,8 @@ export default function App() {
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4 backdrop-blur-sm">
           <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl">
             <h2 className="text-xl font-black mb-4">プロフィール設定</h2>
-            <input type="text" value={profile.name} onChange={e=>setProfile({...profile, name: e.target.value})} className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 mb-3 font-bold outline-none focus:border-indigo-500" />
+            <input type="text" value={profile.name} onChange={e=>setProfile({...profile, name: e.target.value})} placeholder="ニックネーム" className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 mb-3 font-bold outline-none focus:border-indigo-500" maxLength={15} />
+            <textarea value={profile.bio || ''} onChange={e=>setProfile({...profile, bio: e.target.value})} placeholder="自己紹介を入力..." className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 mb-3 text-sm outline-none focus:border-indigo-500 resize-none h-20" maxLength={100} />
             <div className="flex items-center gap-3 bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-2 mb-4">
               <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
                 {profile.icon ? <img src={profile.icon} className="w-full h-full object-cover" alt="profile"/> : <User size={20} className="m-2.5 text-gray-400"/>}
@@ -1610,10 +1612,20 @@ export default function App() {
             </div>
             
             <div className="mb-6 bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3">
-              <label className="text-[10px] text-gray-500 font-bold block mb-2">通知設定 (オンライン時のみ)</label>
+              <label className="text-[10px] text-gray-500 font-bold block mb-2">通知設定</label>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-gray-700">{notifPerm === 'granted' ? '🔔 通知はオンです' : '🔕 通知はオフです'}</span>
-                {notifPerm !== 'granted' && <button onClick={requestNotification} className="text-xs bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-200 transition">許可する</button>}
+                <span className="text-sm font-bold text-gray-700">
+                  {notifPerm === 'granted' ? (profile.isNotificationMuted ? '🔕 ミュート中' : '🔔 通知オン') : '🔕 未許可'}
+                </span>
+                <div className="flex gap-2">
+                  {notifPerm !== 'granted' ? (
+                    <button onClick={requestNotification} className="text-xs bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-200 transition">許可する</button>
+                  ) : (
+                    <button onClick={() => setProfile({...profile, isNotificationMuted: !profile.isNotificationMuted})} className={`text-xs px-3 py-1.5 rounded-lg font-bold transition ${profile.isNotificationMuted ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
+                      {profile.isNotificationMuted ? '通知をオンに' : 'ミュートする'}
+                    </button>
+                  )}
+                </div>
               </div>
               {notifPerm === 'denied' && <p className="text-[10px] text-red-500 mt-2">※ブラウザの設定から通知を許可してください。</p>}
             </div>
